@@ -29,6 +29,10 @@ jobs:
       - run: npm run build
         env:
           DEPLOY_BASE: /${{ github.event.repository.name }}/
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          DEPLOY_BASE: /${{ github.event.repository.name }}/
       - uses: actions/configure-pages@v5
         with:
           enablement: true

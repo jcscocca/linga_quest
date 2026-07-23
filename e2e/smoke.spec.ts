@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test'
 
 test('home renders the Spanish course and skill tree', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('./')
   await expect(page.getByRole('heading', { name: /Lingua Quest/ })).toBeVisible()
   await expect(page.getByText(/Spanish/)).toBeVisible()
   await expect(page.getByRole('button', { name: /Saludos/ })).toBeVisible()
 })
 
 test('a lesson can be opened and a choice exercise solved', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('./')
 
   // Open the first skill and start it.
   await page.getByRole('button', { name: /Saludos/ }).click()
@@ -26,7 +26,7 @@ test('a lesson can be opened and a choice exercise solved', async ({ page }) => 
 })
 
 test('progress persists a streak after a solve', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('./')
   await page.getByRole('button', { name: /Saludos/ }).click()
   await page.getByRole('button', { name: /Start/ }).click()
   await page.getByRole('button', { name: 'Hola', exact: true }).click()
