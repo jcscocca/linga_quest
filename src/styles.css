@@ -213,6 +213,18 @@ button:disabled { opacity: 0.5; cursor: default; }
 .vocab-es { font-weight: 800; font-size: 17px; }
 .vocab-en { color: var(--text); }
 .vocab-pos { color: var(--muted); font-size: 12px; text-transform: capitalize; margin-top: 4px; }
+.vocab-card .status { margin-top: 6px; font-size: 12px; }
+.vocab-card .pips { letter-spacing: 2px; color: var(--primary); }
+.vocab-card .count { color: var(--muted); }
+.vocab-card > button { margin-top: 10px; font-size: 12px; padding: 5px 10px; }
+
+/* ---- home primary action ---- */
+.home-primary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 20px 0; }
+.cta {
+  border-color: var(--primary); background: var(--primary); color: #fff;
+  font-weight: 800; font-size: 16px; padding: 14px 26px; border-radius: var(--radius);
+}
+.cta:hover:not(:disabled) { background: var(--primary-ink); border-color: var(--primary-ink); }
 
 .muted { color: var(--muted); }
 

@@ -19,13 +19,20 @@ import {
 import { todayString } from '../lib/xp'
 import { SpeakButton } from './SpeakButton'
 
+// A full 15×10 sweep only makes sense for a big deck. For small decks (like the
+// placeholder), test each word about once instead of asking 150 questions.
+function probeConfig(n: number): { bands: number; perBand: number } {
+  if (n <= 150) return { bands: Math.max(1, n), perBand: 1 }
+  return { bands: 15, perBand: 10 }
+}
+
 export function ProbeScreen({ deck, lang, voice, onDone }: {
   deck: Deck
   lang: string
   voice: string
   onDone: () => void
 }) {
-  const [state, setState] = useState<ProbeState>(() => startProbe(deck.items.length, { bands: 15, perBand: 10 }))
+  const [state, setState] = useState<ProbeState>(() => startProbe(deck.items.length, probeConfig(deck.items.length)))
   const [text, setText] = useState('')
   const [finalizing, setFinalizing] = useState(false)
   const [result, setResult] = useState<{ frontier: number; seededCount: number } | null>(null)
@@ -49,13 +56,14 @@ export function ProbeScreen({ deck, lang, voice, onDone }: {
 
   if (result) {
     const newCount = deck.items.length - result.seededCount
+    const plural = (n: number) => (n === 1 ? 'word' : 'words')
     return (
       <div className="runner completion-card">
         <div className="trophy">🔍</div>
         <h2>Here’s where you stand</h2>
-        <p>Estimated vocabulary ≈ <strong>{estimateVocab(result.frontier)}</strong> words.</p>
+        <p>Estimated vocabulary ≈ <strong>{estimateVocab(result.frontier)}</strong> {plural(estimateVocab(result.frontier))}.</p>
         <p className="muted">
-          {result.seededCount} words start out known (or nearly there) · {newCount} begin fresh as new words.
+          {result.seededCount} {plural(result.seededCount)} start out known (or nearly there) · {newCount} begin fresh as new {plural(newCount)}.
         </p>
         <button type="button" className="submit" onClick={onDone}>Done</button>
       </div>

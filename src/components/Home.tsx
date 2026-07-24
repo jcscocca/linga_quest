@@ -89,11 +89,11 @@ export function Home({ deck, lang, langs, voice, onStartSession, onStartProbe, o
         </div>
       )}
 
-      <div className="stats">
-        <button className="continue" onClick={onStartSession}>
-          {dueCount === 0 ? 'Learn new words' : `Start session — ${dueCount} due`}
+      <div className="home-primary">
+        <button className="cta" onClick={onStartSession}>
+          {dueCount === 0 ? 'Learn new words →' : `Start session — ${dueCount} due →`}
         </button>
-        {probed && <button onClick={onStartProbe}>Re-run the probe</button>}
+        {probed && <button className="back" onClick={onStartProbe}>Re-run the probe</button>}
       </div>
 
       <div className="stats">
