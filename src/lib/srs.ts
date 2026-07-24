@@ -47,12 +47,30 @@ export function schedule(s: ItemState, grade: Grade, today: string): ItemState {
 
 export type ProbeVerdict = 'known' | 'fuzzy' | 'unknown'
 
-/** Triage → initial state. A known word is seeded mature but with a
- *  deliberately conservative 30-day interval (not level 4's earned 21) — a
- *  fresh estimate gets one month before it must prove itself. */
-export function seedFromProbe(verdict: ProbeVerdict, today: string): ItemState {
-  if (verdict === 'known') return { level: 4, interval: 30, due: addDays(today, 30), lapses: 0, seen: today, origin: 'probe' }
-  if (verdict === 'fuzzy') return { level: 1, interval: EARNED_INTERVAL[1], due: addDays(today, EARNED_INTERVAL[1]), lapses: 0, seen: today, origin: 'probe' }
+// Seed intervals are jittered across a window so a probe doesn't schedule every
+// known word on the same day (a maintenance avalanche a month out); the spread
+// turns that wall into a steady daily load.
+export const KNOWN_SEED_MIN = 21
+export const KNOWN_SEED_MAX = 40
+export const FUZZY_SEED_MIN = 1
+export const FUZZY_SEED_MAX = 8
+
+function jitter(min: number, max: number, rng: () => number): number {
+  return min + Math.floor(rng() * (max - min + 1))
+}
+
+/** Triage → initial state. A known word is seeded mature with a jittered
+ *  multi-week interval so a fresh estimate gets time to prove itself and the
+ *  first maintenance reviews land spread out, not all on one day. */
+export function seedFromProbe(verdict: ProbeVerdict, today: string, rng: () => number = Math.random): ItemState {
+  if (verdict === 'known') {
+    const interval = jitter(KNOWN_SEED_MIN, KNOWN_SEED_MAX, rng)
+    return { level: 4, interval, due: addDays(today, interval), lapses: 0, seen: today, origin: 'probe' }
+  }
+  if (verdict === 'fuzzy') {
+    const interval = jitter(FUZZY_SEED_MIN, FUZZY_SEED_MAX, rng)
+    return { level: 1, interval, due: addDays(today, interval), lapses: 0, seen: today, origin: 'probe' }
+  }
   return { level: 0, interval: 0, due: today, lapses: 0, seen: today, origin: 'probe' }
 }
 

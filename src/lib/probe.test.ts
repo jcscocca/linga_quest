@@ -67,6 +67,14 @@ describe('seedDeck', () => {
     expect(count).toBeLessThan(deck.items.length) // unknowns left unseeded
     expect(Object.keys(seeds).every(id => seeds[id].level >= 1)).toBe(true)
   })
+
+  it('spreads seeded due dates instead of clumping them on one day', () => {
+    let n = 0
+    const rng = () => { n++; return (n % 11) / 11 } // deterministic, varied
+    const seeds = seedDeck(makeDeck(600), 300, '2026-07-24', rng)
+    const knownDues = new Set(Object.values(seeds).filter(s => s.level === 4).map(s => s.due))
+    expect(knownDues.size).toBeGreaterThan(5) // not all on today+30
+  })
 })
 
 describe('estimateVocab', () => {

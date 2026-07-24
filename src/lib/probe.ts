@@ -77,13 +77,13 @@ const FUZZY_MARGIN = 0.5
  *  clearly ABOVE the frontier are left UNSEEDED — they are the new-word pool and
  *  enter at level 0 the first time they're studied, rather than flooding the
  *  review queue on probe day. */
-export function seedDeck(deck: Deck, frontier: number, today: string): Record<string, ItemState> {
+export function seedDeck(deck: Deck, frontier: number, today: string, rng: () => number = Math.random): Record<string, ItemState> {
   const width = deck.items.length / 15
   const margin = width * FUZZY_MARGIN
   const out: Record<string, ItemState> = {}
   for (const it of deck.items) {
-    if (it.rank <= frontier - margin) out[it.id] = seedFromProbe('known', today)
-    else if (it.rank < frontier + margin) out[it.id] = seedFromProbe('fuzzy', today)
+    if (it.rank <= frontier - margin) out[it.id] = seedFromProbe('known', today, rng)
+    else if (it.rank < frontier + margin) out[it.id] = seedFromProbe('fuzzy', today, rng)
     // else unknown → leave unseeded
   }
   return out

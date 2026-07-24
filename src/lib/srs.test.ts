@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EARNED_INTERVAL, LAPSE_DROP, MAX_LEVEL, newState, schedule, testModeForLevel, type ItemState } from './srs'
-import { isStrong, seedFromProbe } from './srs'
+import { FUZZY_SEED_MAX, FUZZY_SEED_MIN, KNOWN_SEED_MAX, KNOWN_SEED_MIN, isStrong, seedFromProbe } from './srs'
+import { addDays } from './xp'
 
 const at = (level: number, over: Partial<ItemState> = {}): ItemState => ({
   level, interval: EARNED_INTERVAL[level], due: '2026-07-24', lapses: 0, seen: '2026-07-24', origin: 'default', ...over,
@@ -53,12 +54,25 @@ describe('schedule', () => {
 })
 
 describe('seedFromProbe', () => {
-  it('seeds a known word mature with a conservative 30-day interval', () => {
-    const s = seedFromProbe('known', '2026-07-24')
-    expect(s).toEqual({ level: 4, interval: 30, due: '2026-08-23', lapses: 0, seen: '2026-07-24', origin: 'probe' })
+  it('seeds a known word mature with a jittered multi-week interval', () => {
+    const s = seedFromProbe('known', '2026-07-24', () => 0.5)
+    expect(s.level).toBe(4)
+    expect(s.origin).toBe('probe')
+    expect(s.interval).toBeGreaterThanOrEqual(KNOWN_SEED_MIN)
+    expect(s.interval).toBeLessThanOrEqual(KNOWN_SEED_MAX)
+    expect(s.due).toBe(addDays('2026-07-24', s.interval))
   })
-  it('seeds a frontier-band word at level 1', () => {
-    expect(seedFromProbe('fuzzy', '2026-07-24').level).toBe(1)
+  it('jitters the known interval across the window, not one fixed day', () => {
+    const lo = seedFromProbe('known', '2026-07-24', () => 0).interval
+    const hi = seedFromProbe('known', '2026-07-24', () => 0.999).interval
+    expect(lo).toBe(KNOWN_SEED_MIN)
+    expect(hi).toBe(KNOWN_SEED_MAX)
+  })
+  it('seeds a frontier-band word at level 1 with a short jittered interval', () => {
+    const s = seedFromProbe('fuzzy', '2026-07-24', () => 0.5)
+    expect(s.level).toBe(1)
+    expect(s.interval).toBeGreaterThanOrEqual(FUZZY_SEED_MIN)
+    expect(s.interval).toBeLessThanOrEqual(FUZZY_SEED_MAX)
   })
   it('seeds an unknown word as new (level 0, due today)', () => {
     const s = seedFromProbe('unknown', '2026-07-24')
