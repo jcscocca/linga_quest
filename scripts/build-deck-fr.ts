@@ -27,6 +27,16 @@ const POS: Record<string, string> = {
 }
 const PRIO: Record<string, number> = { noun: 0, verb: 1, adj: 2, adv: 3, num: 4, pron: 5, prep: 6, conj: 7, art: 8, det: 9, interj: 10 }
 const DESC = /\b(article|pronoun|preposition|conjunction|interjection|determiner|used|forms|denotes|indicates|expressing|substitutes?|nominative|reflexive|masculine|feminine|singular|plural|first-person|second-person|third-person|definite|indefinite|disjunctive|subject|participle|prefix|suffix|letter of|inflection of|form of)\b/i
+// Homograph/meta junk (e.g. "the note B", "abbreviation of circa", "letter: x",
+// "Followed by rank") — never a real translation.
+const JUNK = /:|\b(greek letter|the note|abbreviation of|senses? relating|followed by|the name of|points out|prepositional form|circa|clipping of|contraction of|nickname of)\b/i
+
+type Override = { pos?: string; gloss?: string[]; rank?: number; drop?: boolean }
+/** Hand-curated accuracy corrections keyed by lemma (scripts/overrides.<lang>.json). */
+function loadOverrides(lang: string): Record<string, Override> {
+  const path = `${ROOT}scripts/overrides.${lang}.json`
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}
+}
 
 /** Reduce raw gloss lines to at most 2 short, clean translation senses. */
 function cleanSenses(glossLines: string[]): string[] {
@@ -36,7 +46,7 @@ function cleanSenses(glossLines: string[]): string[] {
     for (let sense of stripped.split(/;|,/)) {
       sense = sense.replace(/[:：]+\s*$/, '').replace(/\s+/g, ' ').trim()
       if (!sense || sense.length > 32 || !/[a-zàâçéèêëîïôûùüÿñæœ]/i.test(sense)) continue
-      if (DESC.test(sense)) continue
+      if (DESC.test(sense) || JUNK.test(sense)) continue
       const words = new Set(sense.split(/\s+/))
       if (out.some(o => { const ow = new Set(o.split(/\s+/)); return [...words].every(w => ow.has(w)) })) continue
       if (!out.includes(sense)) out.push(sense)
@@ -113,10 +123,19 @@ async function main(): Promise<void> {
     byWord.get(e.word)!.push(e)
   }
 
+  const overrides = loadOverrides('fr')
   const words = [...total.entries()].filter(([w]) => byWord.has(w)).sort((a, b) => b[1] - a[1])
   const items: DeckItem[] = []
   for (const [word] of words) {
     if (items.length >= N) break
+    const ov = overrides[word]
+    if (ov) { // curated: drop a spurious lemma, or correct it at its natural rank
+      if (!ov.drop && ov.gloss) {
+        const pos = ov.pos ?? byWord.get(word)![0].pos
+        items.push({ id: `fr:${word}:${pos}`, lemma: word, pos, gloss: ov.gloss, rank: items.length + 1 })
+      }
+      continue
+    }
     const cands = byWord.get(word)!
     const pw = posWeight.get(word)
     const best = [...cands].sort((a, b) =>
@@ -125,6 +144,19 @@ async function main(): Promise<void> {
     if (!gloss.length) continue
     items.push({ id: `fr:${word}:${best.pos}`, lemma: word, pos: best.pos, gloss, rank: items.length + 1 })
   }
+
+  // Place curated words at their hint rank — moving one that folded to a low
+  // residual rank, or inserting one the fold missed entirely (a common noun
+  // whose surface folded to a rare homograph verb, e.g. monde→monder).
+  for (const [lemma, ov] of Object.entries(overrides)) {
+    if (ov.rank == null || ov.drop || !ov.gloss) continue
+    const at = items.findIndex(it => it.lemma === lemma)
+    const pos = ov.pos ?? (at >= 0 ? items[at].pos : 'noun')
+    if (at >= 0) items.splice(at, 1)
+    items.splice(Math.min(ov.rank - 1, items.length), 0, { id: `fr:${lemma}:${pos}`, lemma, pos, gloss: ov.gloss, rank: 0 })
+  }
+  items.length = Math.min(items.length, N)
+  items.forEach((it, i) => { it.rank = i + 1 })
 
   const deck: Deck = {
     lang: 'fr',

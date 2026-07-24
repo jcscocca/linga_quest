@@ -23,6 +23,9 @@ const POS: Record<string, string> = {
 const RESTRICT = /obsolete|archaic|dated|rare|vulgar|slang|chess|board games|obscure/i
 // Grammatical descriptions, not translations — drop so the clean gloss surfaces.
 const DESC = /\b(article|pronoun|preposition|conjunction|interjection|used|forms|denotes|indicates|expressing|nominative|reflexive|reciprocal|masculine|feminine|singular|plural|first-person|second-person|third-person|definite|indefinite|disjunctive|subject|participle|prefix|suffix|letter of)\b/i
+// Homograph/meta junk (e.g. "letter: t", "the Greek letter", "the note B",
+// "abbreviation of X", "prepositional form of se") — never a real translation.
+const JUNK = /:|\b(greek letter|the note|abbreviation of|senses? relating|followed by|the name of|points out|prepositional form|circa|clipping of|contraction of|nickname of)\b/i
 
 async function ensureRaw(name: string): Promise<string> {
   const path = `${RAW}/${name}`
@@ -36,6 +39,15 @@ async function ensureRaw(name: string): Promise<string> {
   return readFileSync(path, 'utf8')
 }
 
+export type Override = { pos?: string; gloss?: string[]; rank?: number; drop?: boolean }
+/** Hand-curated accuracy corrections keyed by lemma (scripts/overrides.<lang>.json).
+ *  Applied inline during construction so a corrected word keeps its natural
+ *  frequency rank and is never dropped by gloss filtering. */
+function loadOverrides(lang: string): Record<string, Override> {
+  const path = `${ROOT}scripts/overrides.${lang}.json`
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}
+}
+
 /** Reduce raw gloss lines to at most 2 short, clean translation senses. */
 function cleanSenses(glossLines: string[]): string[] {
   const out: string[] = []
@@ -44,7 +56,7 @@ function cleanSenses(glossLines: string[]): string[] {
     for (let sense of stripped.split(';')) {
       sense = sense.replace(/[:：]+\s*$/, '').replace(/\s+/g, ' ').replace(/^,|,$/g, '').trim()
       if (!sense || sense.length > 40 || !/[a-záéíóúñ]/i.test(sense)) continue
-      if (DESC.test(sense)) continue
+      if (DESC.test(sense) || JUNK.test(sense)) continue
       const words = new Set(sense.split(/[,\s]+/))
       const covered = out.some(o => { const ow = new Set(o.split(/[,\s]+/)); return [...words].every(w => ow.has(w)) })
       if (covered || out.includes(sense)) continue
@@ -84,6 +96,8 @@ async function main(): Promise<void> {
   const [freq, data] = await Promise.all([ensureRaw('frequency.csv'), ensureRaw('es-en.data')])
   const gloss = parseGlosses(data)
 
+  const overrides = loadOverrides('es')
+  const overridden = new Set<string>()
   const items: DeckItem[] = []
   const seen = new Set<string>()
   let noGloss = 0, skippedPos = 0
@@ -98,6 +112,16 @@ async function main(): Promise<void> {
     if (flags.includes('NOUSAGE') || rawPos === 'none' || !lemma || lemma.includes(' ')) continue
     const display = POS[rawPos]
     if (!display) { skippedPos++; continue }
+    const ov = overrides[lemma]
+    if (ov) { // curated: drop a spurious lemma, or correct it at its natural rank
+      if (!ov.drop && ov.gloss && !overridden.has(lemma)) {
+        overridden.add(lemma)
+        const pos = ov.pos ?? display
+        items.push({ id: `es:${lemma}:${pos}`, lemma, pos, gloss: ov.gloss, rank: items.length + 1 })
+      }
+      overridden.add(lemma)
+      continue
+    }
     const byPos = gloss.get(lemma)
     const rawGlosses = byPos?.get(rawPos) ?? (byPos ? [...byPos.values()][0] : undefined)
     if (!rawGlosses) { noGloss++; continue }
@@ -108,6 +132,18 @@ async function main(): Promise<void> {
     seen.add(id)
     items.push({ id, lemma, pos: display, gloss: senses, rank: items.length + 1 })
   }
+
+  // Place curated words at their hint rank — moving a low residual, or inserting
+  // one the frequency data missed entirely.
+  for (const [lemma, ov] of Object.entries(overrides)) {
+    if (ov.rank == null || ov.drop || !ov.gloss) continue
+    const at = items.findIndex(it => it.lemma === lemma)
+    const pos = ov.pos ?? (at >= 0 ? items[at].pos : 'noun')
+    if (at >= 0) items.splice(at, 1)
+    items.splice(Math.min(ov.rank - 1, items.length), 0, { id: `es:${lemma}:${pos}`, lemma, pos, gloss: ov.gloss, rank: 0 })
+  }
+  items.length = Math.min(items.length, N)
+  items.forEach((it, i) => { it.rank = i + 1 })
 
   const deck: Deck = {
     lang: 'es',
