@@ -85,3 +85,32 @@ export function strongCount(states: Record<string, ItemState>, today: string): n
 export function estimatedVocab(profile: Profile, lang: string): number {
   return profile.frontier[lang] ?? 0
 }
+
+export const LANGS = ['es', 'fr'] as const
+
+export interface ExportFile {
+  version: 2
+  profile: Profile
+  items: Record<string, Record<string, ItemState>>
+}
+
+export async function exportAll(): Promise<ExportFile> {
+  const profile = (await idbGet<Profile>(PROFILE_KEY).catch(() => undefined)) ?? emptyProfile
+  const items: Record<string, Record<string, ItemState>> = {}
+  for (const lang of LANGS) {
+    const pairs = await entries<string, ItemState>(itemStore(lang)).catch(() => [])
+    items[lang] = Object.fromEntries(pairs)
+  }
+  return { version: 2, profile: { ...profile, hydrated: false }, items }
+}
+
+export async function importAll(file: ExportFile): Promise<void> {
+  if (!file || (file as { version?: number }).version !== 2 || !file.items) {
+    throw new Error('This looks like an older Lingua Quest backup and cannot be imported into the new trainer.')
+  }
+  await idbSet(PROFILE_KEY, { ...file.profile, version: 2 })
+  for (const lang of LANGS) {
+    const map = file.items[lang] ?? {}
+    await setMany(Object.entries(map), itemStore(lang))
+  }
+}

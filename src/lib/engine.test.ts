@@ -70,3 +70,36 @@ describe('metrics', () => {
     expect(estimatedVocab({ version: 2, frontier: { es: 1500 }, hydrated: true }, 'es')).toBe(1500)
   })
 })
+
+import { exportAll, importAll, LANGS } from './engine'
+
+describe('export / import', () => {
+  it('round-trips profile and every language store', async () => {
+    const deck = makeDeck(10)
+    await useEngine.getState().applyProbe('es', seedDeck(deck, 6, todayString()), 6)
+    await useEngine.getState().grade('es:w1:noun', true)
+
+    const json = await exportAll()
+    expect(json.version).toBe(2)
+    expect(Object.keys(json.items.es).length).toBe(10)
+
+    // Wipe in-memory and re-import from the exported JSON.
+    useEngine.setState({ states: {}, profile: { version: 2, frontier: {}, hydrated: true } })
+    await importAll(json)
+    await useEngine.getState().hydrate('es')
+    expect(useEngine.getState().profile.frontier.es).toBe(6)
+    // rank 1 on a 10-item deck at frontier 6 seeds "known" (level 4); the one
+    // right answer above matures it to 5, and that must survive the round trip.
+    expect(useEngine.getState().states['es:w1:noun'].level).toBe(5)
+  })
+
+  it('rejects a v1 (skill-tree) export with a clear message', async () => {
+    await expect(importAll({ version: 1, skills: {}, xp: 0 } as unknown as Awaited<ReturnType<typeof exportAll>>))
+      .rejects.toThrow(/older Lingua Quest/)
+  })
+
+  it('exposes the known languages', () => {
+    expect(LANGS).toContain('es')
+    expect(LANGS).toContain('fr')
+  })
+})
