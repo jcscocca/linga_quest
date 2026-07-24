@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "playwright test",
-    "validate": "tsx scripts/validate-deck.ts"
+    "validate": "tsx scripts/validate-deck.ts",
+    "build:deck": "tsx scripts/build-deck.ts"
   },
   "dependencies": {
     "idb-keyval": "^6.3.0",
