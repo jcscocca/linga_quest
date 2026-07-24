@@ -4,9 +4,9 @@
 // loads. Profile (frontier estimates) lives in the default store.
 
 import { create } from 'zustand'
-import { createStore, entries, get as idbGet, set as idbSet, type UseStore } from 'idb-keyval'
+import { createStore, entries, get as idbGet, set as idbSet, setMany, type UseStore } from 'idb-keyval'
 import { todayString } from './xp'
-import { newState, schedule, type ItemState } from './srs'
+import { isStrong, newState, schedule, type ItemState } from './srs'
 
 export interface Profile {
   version: 2
@@ -22,6 +22,8 @@ interface EngineStore {
   hydrated: boolean
   hydrate(lang: string): Promise<void>
   grade(id: string, correct: boolean): Promise<void>
+  applyProbe(lang: string, seeds: Record<string, ItemState>, frontier: number): Promise<void>
+  resetItem(id: string): Promise<void>
 }
 
 const PROFILE_KEY = 'lingua-quest-profile'
@@ -55,4 +57,31 @@ export const useEngine = create<EngineStore>((set, get) => ({
     set({ states: { ...states, [id]: next } })
     await idbSet(id, next, itemStore(activeLang))
   },
+
+  async applyProbe(lang, seeds, frontier) {
+    await setMany(Object.entries(seeds), itemStore(lang))
+    const profile: Profile = { ...get().profile, frontier: { ...get().profile.frontier, [lang]: frontier } }
+    await idbSet(PROFILE_KEY, profile)
+    set(s => ({
+      profile,
+      states: s.activeLang === lang ? { ...s.states, ...seeds } : s.states,
+    }))
+  },
+
+  async resetItem(id) {
+    const { states, activeLang } = get()
+    const prev = states[id]
+    if (!prev) return
+    const next: ItemState = { level: 0, interval: 0, due: todayString(), lapses: prev.lapses, seen: todayString(), origin: 'manual' }
+    set({ states: { ...states, [id]: next } })
+    await idbSet(id, next, itemStore(activeLang))
+  },
 }))
+
+export function strongCount(states: Record<string, ItemState>, today: string): number {
+  return Object.values(states).filter(s => isStrong(s, today)).length
+}
+
+export function estimatedVocab(profile: Profile, lang: string): number {
+  return profile.frontier[lang] ?? 0
+}

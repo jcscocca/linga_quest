@@ -35,3 +35,38 @@ describe('grade', () => {
     expect(useEngine.getState().states['es:casa:noun'].level).toBe(3) // 5 - LAPSE_DROP
   })
 })
+
+import { strongCount, estimatedVocab } from './engine'
+import { seedDeck } from './probe'
+import { makeDeck } from './fixtures'
+
+describe('applyProbe', () => {
+  it('bulk-seeds states and records the frontier', async () => {
+    const deck = makeDeck(100)
+    const seeds = seedDeck(deck, 60, todayString())
+    await useEngine.getState().applyProbe('es', seeds, 60)
+    expect(useEngine.getState().states['es:w10:noun'].level).toBe(4)
+    expect(useEngine.getState().profile.frontier.es).toBe(60)
+  })
+})
+
+describe('resetItem', () => {
+  it('drops a word to level 0 and marks it manual', async () => {
+    useEngine.setState({ states: { 'es:casa:noun': { level: 5, interval: 45, due: todayString(), lapses: 0, seen: todayString(), origin: 'probe' } } })
+    await useEngine.getState().resetItem('es:casa:noun')
+    const s = useEngine.getState().states['es:casa:noun']
+    expect(s.level).toBe(0)
+    expect(s.origin).toBe('manual')
+  })
+})
+
+describe('metrics', () => {
+  it('estimatedVocab reads the frontier; strongCount counts mature not-overdue words', () => {
+    const states = {
+      a: { level: 4, interval: 21, due: '2026-08-14', lapses: 0, seen: '2026-07-24', origin: 'probe' as const },
+      b: { level: 2, interval: 3, due: '2026-07-27', lapses: 0, seen: '2026-07-24', origin: 'default' as const },
+    }
+    expect(strongCount(states, '2026-07-24')).toBe(1)
+    expect(estimatedVocab({ version: 2, frontier: { es: 1500 }, hydrated: true }, 'es')).toBe(1500)
+  })
+})
