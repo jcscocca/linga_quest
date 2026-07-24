@@ -44,3 +44,20 @@ export function schedule(s: ItemState, grade: Grade, today: string): ItemState {
   const interval = EARNED_INTERVAL[level]
   return { ...s, level, interval, due: addDays(today, interval), lapses: s.lapses + 1, seen: today }
 }
+
+export type ProbeVerdict = 'known' | 'fuzzy' | 'unknown'
+
+/** Triage → initial state. A known word is seeded mature but with a
+ *  deliberately conservative 30-day interval (not level 4's earned 21) — a
+ *  fresh estimate gets one month before it must prove itself. */
+export function seedFromProbe(verdict: ProbeVerdict, today: string): ItemState {
+  if (verdict === 'known') return { level: 4, interval: 30, due: addDays(today, 30), lapses: 0, seen: today, origin: 'probe' }
+  if (verdict === 'fuzzy') return { level: 1, interval: EARNED_INTERVAL[1], due: addDays(today, EARNED_INTERVAL[1]), lapses: 0, seen: today, origin: 'probe' }
+  return { level: 0, interval: 0, due: today, lapses: 0, seen: today, origin: 'probe' }
+}
+
+/** A word counts as "strong" for metrics when it is mature (level ≥ 4) and not
+ *  yet overdue. */
+export function isStrong(s: ItemState, today: string): boolean {
+  return s.level >= 4 && today <= s.due
+}
