@@ -177,7 +177,17 @@ mechanic):
 The piece ordinary SRS cannot do. Probe verdict writes state immediately:
 - **known** → `level 4, interval 30, due today+30` (never enters as new)
 - **fuzzy (frontier band)** → `level 1`
-- **unknown** → `level 0`
+- **unknown** → left **unseeded** (see correction below)
+
+> **Post-review correction (2026-07-24).** Originally "unknown → `level 0`", i.e.
+> every deck word got a saved state at probe time. In practice that dumped the
+> ~(deck − frontier) unknown words into the review queue as due-today items whose
+> overdue ratio only grows, permanently starving words the learner actually
+> studies (verified: ~74 straight sessions of nothing but untouched seeds).
+> Fix: **unknown words are left unseeded** — they are the new-word pool and enter
+> at `level 0` the first time they are studied, which still honors "unknown starts
+> at level 0" without the flood. `seedDeck` therefore persists only known and
+> frontier-band words.
 
 `level` and `interval` are independent state fields. The table above shows the
 interval a word *earns by review* at each level; triage instead seeds a known

@@ -717,6 +717,13 @@ git commit -m "feat(engine): frequency-band probe with frontier estimate"
 
 ## Task 6: Probe → deck seeding and vocab estimate
 
+> **Superseded after review (see fix commit `ad494c1`).** The `seedDeck` below
+> seeds *every* deck item, including unknowns at level 0 — which floods and
+> starves the review queue. The shipped version leaves unknown words **unseeded**
+> (new-word pool) and uses an unbiased sum-of-band-rates `probeFrontier`. Read the
+> current `src/lib/probe.ts` as the source of truth; the code block here is the
+> original plan text kept for history.
+
 **Files:**
 - Modify: `src/lib/probe.ts` (append)
 - Test: `src/lib/probe.test.ts` (append)
