@@ -175,9 +175,14 @@ mechanic):
 ### Triage seeds the schedule directly
 
 The piece ordinary SRS cannot do. Probe verdict writes state immediately:
-- **known** → `level 4, interval 30, due today+30` (never enters as new)
-- **fuzzy (frontier band)** → `level 1`
+- **known** → `level 4`, interval **jittered 21–40 days** (never enters as new)
+- **fuzzy (frontier band)** → `level 1`, interval jittered 1–8 days
 - **unknown** → left **unseeded** (see correction below)
+
+The intervals are jittered rather than fixed so a probe doesn't schedule every
+known word's first review on the same day — that clumping would produce a
+~1,400-review avalanche a month out. Spreading turns the wall into a steady daily
+load (the steady-state size of that load is then a session-size choice for the UI).
 
 > **Post-review correction (2026-07-24).** Originally "unknown → `level 0`", i.e.
 > every deck word got a saved state at probe time. In practice that dumped the
@@ -191,9 +196,9 @@ The piece ordinary SRS cannot do. Probe verdict writes state immediately:
 
 `level` and `interval` are independent state fields. The table above shows the
 interval a word *earns by review* at each level; triage instead seeds a known
-word with a deliberately conservative 30-day interval (a fresh probe estimate
-gets one month before it must prove itself, regardless of the level-4 review
-default). The two need not match.
+word with a conservative multi-week interval (~3–6 weeks) so a fresh probe
+estimate gets time to prove itself, regardless of the level-4 review default. The
+two need not match.
 
 ### Queue assembly (per language)
 
