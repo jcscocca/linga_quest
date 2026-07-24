@@ -2,8 +2,6 @@
 // stray punctuation, or vary capitalization — so we normalize both sides before
 // comparing and accept an accent-only miss with a gentle nudge.
 
-import type { Exercise } from './content'
-
 export interface CheckResult {
   correct: boolean
   /** A hint shown on a lenient (accent-only) accept. */
@@ -40,23 +38,4 @@ export function checkText(given: string, accept: string[]): CheckResult {
   const near = accept.find(a => foldAccents(normalize(a)) === gf)
   if (near) return { correct: true, note: `¡Casi! Watch the accents — it's “${near}”.` }
   return { correct: false }
-}
-
-/**
- * Judge a submission for any exercise type.
- * `given` is: the chosen option (choice), the typed text (type/listen),
- * the space-joined tokens (build), or 'matched' when a match round is complete.
- */
-export function check(exercise: Exercise, given: string): CheckResult {
-  switch (exercise.type) {
-    case 'choice':
-      return { correct: normalize(given) === normalize(exercise.answer) }
-    case 'type':
-    case 'listen':
-      return checkText(given, exercise.accept)
-    case 'build':
-      return checkText(given, [exercise.answer, ...(exercise.accept ?? [])])
-    case 'match':
-      return { correct: given === 'matched' }
-  }
 }

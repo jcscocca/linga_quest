@@ -9,7 +9,7 @@ import type { Deck, DeckItem } from '../lib/deck'
 import type { TestMode } from '../lib/srs'
 import { choiceOptions, gradeCard } from '../lib/cards'
 import { speak, speechSupported } from '../lib/speech'
-import { SpeakButton } from './exercises/inputs'
+import { SpeakButton } from './SpeakButton'
 
 const MODE_LABEL: Record<TestMode, string> = { choice: 'Choice', type: 'Type', audio: 'Audio' }
 

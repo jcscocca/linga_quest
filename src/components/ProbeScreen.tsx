@@ -17,7 +17,7 @@ import {
   type ProbeState,
 } from '../lib/probe'
 import { todayString } from '../lib/xp'
-import { SpeakButton } from './exercises/inputs'
+import { SpeakButton } from './SpeakButton'
 
 export function ProbeScreen({ deck, lang, voice, onDone }: {
   deck: Deck

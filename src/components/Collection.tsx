@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Deck, DeckItem } from '../lib/deck'
 import { useEngine } from '../lib/engine'
 import type { ItemState } from '../lib/srs'
-import { SpeakButton } from './exercises/inputs'
+import { SpeakButton } from './SpeakButton'
 
 export function Collection({ deck, voice, onBack }: {
   deck: Deck
