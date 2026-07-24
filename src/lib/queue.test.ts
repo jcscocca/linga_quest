@@ -25,6 +25,7 @@ describe('assembleSession', () => {
     // new words are unseen deck items, lowest rank first, capped at 2
     const newIds = cards.filter(c => c.state.origin === 'default' && !states[c.item.id]).map(c => c.item.id)
     expect(newIds.length).toBeLessThanOrEqual(2)
+    expect(newIds).toEqual(['es:w4:noun', 'es:w5:noun']) // lowest-rank unseen, in order
   })
 
   it('orders the most-overdue review first', () => {
@@ -44,5 +45,23 @@ describe('assembleSession', () => {
 
   it('returns nothing when no review is due and maxNew is 0', () => {
     expect(assembleSession(deck, {}, today, { maxNew: 0, sessionSize: 10 }, () => 0)).toEqual([])
+  })
+
+  it('never lets new words displace due reviews when the backlog fills the session', () => {
+    const big = makeDeck(50)
+    const states: Record<string, ItemState> = {}
+    for (let i = 1; i <= 25; i++) states[`es:w${i}:noun`] = state({ due: '2026-07-20' })
+    const cards = assembleSession(big, states, today, { maxNew: 15, sessionSize: 20 }, () => 0)
+    expect(cards).toHaveLength(20)
+    expect(cards.every(c => states[c.item.id])).toBe(true) // all reviews, zero new
+  })
+
+  it('prioritises overdue-relative-to-interval, not absolute days late', () => {
+    const states: Record<string, ItemState> = {
+      'es:w1:noun': state({ due: '2026-07-14', interval: 45 }), // 10 days late, ratio ~0.22
+      'es:w2:noun': state({ due: '2026-07-22', interval: 1 }),  // 2 days late, ratio 2
+    }
+    const cards = assembleSession(deck, states, today, { maxNew: 0, sessionSize: 10 }, () => 0)
+    expect(cards[0].item.id).toBe('es:w2:noun')
   })
 })

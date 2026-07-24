@@ -34,13 +34,16 @@ export function assembleSession(
     .sort((a, b) => b.ratio - a.ratio)
     .map(({ it, s }) => ({ item: it, state: s, mode: testModeForLevel(s.level) }))
 
+  // Reviews take priority: new words only fill slots left over after due
+  // reviews, so a backlog is never displaced by fresh cards.
+  const room = Math.max(0, sessionSize - reviews.length)
   const fresh: SessionCard[] = deck.items
     .filter(it => !states[it.id])
     .sort((a, b) => a.rank - b.rank)
-    .slice(0, maxNew)
+    .slice(0, Math.min(maxNew, room))
     .map(it => ({ item: it, state: newState(today), mode: 'choice' as const }))
 
-  return interleave(reviews, fresh, rng).slice(0, sessionSize)
+  return interleave(reviews.slice(0, sessionSize), fresh, rng)
 }
 
 /** Weave new cards among reviews at roughly even spacing (order within each
