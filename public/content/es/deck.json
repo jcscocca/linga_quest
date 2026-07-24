@@ -1,0 +1,31 @@
+{
+  "lang": "es",
+  "generated": "2026-07-24",
+  "sources": [{ "name": "Placeholder (hand-written)", "url": "https://github.com/jcscocca/lingua_quest", "license": "CC BY-SA 3.0" }],
+  "items": [
+    { "id": "es:el:art", "lemma": "el", "pos": "art", "gloss": ["the"], "rank": 1 },
+    { "id": "es:de:prep", "lemma": "de", "pos": "prep", "gloss": ["of", "from"], "rank": 2 },
+    { "id": "es:que:conj", "lemma": "que", "pos": "conj", "gloss": ["that", "which"], "rank": 3 },
+    { "id": "es:y:conj", "lemma": "y", "pos": "conj", "gloss": ["and"], "rank": 4 },
+    { "id": "es:ser:verb", "lemma": "ser", "pos": "verb", "gloss": ["to be"], "rank": 5, "ex": { "t": "Quiero ser médico.", "en": "I want to be a doctor." } },
+    { "id": "es:casa:noun", "lemma": "casa", "pos": "noun", "gloss": ["house", "home"], "rank": 6, "ex": { "t": "La casa es grande.", "en": "The house is big." } },
+    { "id": "es:tiempo:noun", "lemma": "tiempo", "pos": "noun", "gloss": ["time", "weather"], "rank": 7 },
+    { "id": "es:hacer:verb", "lemma": "hacer", "pos": "verb", "gloss": ["to do", "to make"], "rank": 8 },
+    { "id": "es:año:noun", "lemma": "año", "pos": "noun", "gloss": ["year"], "rank": 9 },
+    { "id": "es:día:noun", "lemma": "día", "pos": "noun", "gloss": ["day"], "rank": 10 },
+    { "id": "es:vida:noun", "lemma": "vida", "pos": "noun", "gloss": ["life"], "rank": 11 },
+    { "id": "es:mundo:noun", "lemma": "mundo", "pos": "noun", "gloss": ["world"], "rank": 12 },
+    { "id": "es:mano:noun", "lemma": "mano", "pos": "noun", "gloss": ["hand"], "rank": 13 },
+    { "id": "es:agua:noun", "lemma": "agua", "pos": "noun", "gloss": ["water"], "rank": 14 },
+    { "id": "es:comer:verb", "lemma": "comer", "pos": "verb", "gloss": ["to eat"], "rank": 15 },
+    { "id": "es:grande:adj", "lemma": "grande", "pos": "adj", "gloss": ["big", "large"], "rank": 16 },
+    { "id": "es:pequeño:adj", "lemma": "pequeño", "pos": "adj", "gloss": ["small"], "rank": 17 },
+    { "id": "es:mujer:noun", "lemma": "mujer", "pos": "noun", "gloss": ["woman"], "rank": 18 },
+    { "id": "es:hombre:noun", "lemma": "hombre", "pos": "noun", "gloss": ["man"], "rank": 19 },
+    { "id": "es:libro:noun", "lemma": "libro", "pos": "noun", "gloss": ["book"], "rank": 20 },
+    { "id": "es:ciudad:noun", "lemma": "ciudad", "pos": "noun", "gloss": ["city"], "rank": 21 },
+    { "id": "es:trabajar:verb", "lemma": "trabajar", "pos": "verb", "gloss": ["to work"], "rank": 22 },
+    { "id": "es:hablar:verb", "lemma": "hablar", "pos": "verb", "gloss": ["to speak", "to talk"], "rank": 23 },
+    { "id": "es:noche:noun", "lemma": "noche", "pos": "noun", "gloss": ["night"], "rank": 24 }
+  ]
+}
