@@ -78,4 +78,7 @@ describe('isStrong', () => {
   it('is false for a low-level word even if not due', () => {
     expect(isStrong({ level: 2, interval: 3, due: '2026-07-27', lapses: 0, seen: '2026-07-24', origin: 'default' }, '2026-07-24')).toBe(false)
   })
+  it('is true exactly on the due date (boundary)', () => {
+    expect(isStrong({ level: 4, interval: 21, due: '2026-07-24', lapses: 0, seen: '2026-07-24', origin: 'probe' }, '2026-07-24')).toBe(true)
+  })
 })

@@ -4,7 +4,7 @@
 // loads. Profile (frontier estimates) lives in the default store.
 
 import { create } from 'zustand'
-import { createStore, entries, get as idbGet, set as idbSet, setMany, type UseStore } from 'idb-keyval'
+import { clear, createStore, entries, get as idbGet, set as idbSet, setMany, type UseStore } from 'idb-keyval'
 import { todayString } from './xp'
 import { isStrong, newState, schedule, type ItemState } from './srs'
 
@@ -60,12 +60,11 @@ export const useEngine = create<EngineStore>((set, get) => ({
 
   async applyProbe(lang, seeds, frontier) {
     await setMany(Object.entries(seeds), itemStore(lang))
-    const profile: Profile = { ...get().profile, frontier: { ...get().profile.frontier, [lang]: frontier } }
+    const saved = await idbGet<Profile>(PROFILE_KEY).catch(() => undefined)
+    const base = saved && saved.version === 2 ? saved : get().profile
+    const profile: Profile = { ...base, hydrated: true, frontier: { ...base.frontier, [lang]: frontier } }
     await idbSet(PROFILE_KEY, profile)
-    set(s => ({
-      profile,
-      states: s.activeLang === lang ? { ...s.states, ...seeds } : s.states,
-    }))
+    set(s => ({ profile, states: s.activeLang === lang ? { ...s.states, ...seeds } : s.states }))
   },
 
   async resetItem(id) {
@@ -108,9 +107,13 @@ export async function importAll(file: ExportFile): Promise<void> {
   if (!file || (file as { version?: number }).version !== 2 || !file.items) {
     throw new Error('This looks like an older Lingua Quest backup and cannot be imported into the new trainer.')
   }
+  if (!file.profile || typeof file.profile !== 'object') {
+    throw new Error('This Lingua Quest backup is missing its profile and cannot be imported.')
+  }
   await idbSet(PROFILE_KEY, { ...file.profile, version: 2 })
   for (const lang of LANGS) {
-    const map = file.items[lang] ?? {}
-    await setMany(Object.entries(map), itemStore(lang))
+    const store = itemStore(lang)
+    await clear(store) // full restore, not a merge — no stale keys linger
+    await setMany(Object.entries(file.items[lang] ?? {}), store)
   }
 }

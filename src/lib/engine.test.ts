@@ -50,6 +50,18 @@ describe('applyProbe', () => {
   })
 })
 
+describe('applyProbe language isolation', () => {
+  it('does not merge an inactive language\'s seeds into memory but persists them', async () => {
+    const deck = makeDeck(20, 'fr')
+    const seeds = seedDeck(deck, 12, todayString()) // active language is 'es'
+    await useEngine.getState().applyProbe('fr', seeds, 12)
+    expect(Object.keys(useEngine.getState().states)).toHaveLength(0) // es memory untouched
+    const frSaved = await entries(itemStore('fr'))
+    expect(frSaved.length).toBeGreaterThan(0)
+    expect(useEngine.getState().profile.frontier.fr).toBe(12)
+  })
+})
+
 describe('resetItem', () => {
   it('drops a word to level 0 and marks it manual', async () => {
     useEngine.setState({ states: { 'es:casa:noun': { level: 5, interval: 45, due: todayString(), lapses: 0, seen: todayString(), origin: 'probe' } } })
@@ -81,7 +93,9 @@ describe('export / import', () => {
 
     const json = await exportAll()
     expect(json.version).toBe(2)
-    expect(Object.keys(json.items.es).length).toBe(10)
+    // frontier 6 on a 10-item deck seeds ranks 1–6 (known + fuzzy); 7–10 stay
+    // unseeded (new-word pool), so only 6 states are persisted.
+    expect(Object.keys(json.items.es).length).toBe(6)
 
     // Wipe in-memory and re-import from the exported JSON.
     useEngine.setState({ states: {}, profile: { version: 2, frontier: {}, hydrated: true } })
@@ -96,6 +110,11 @@ describe('export / import', () => {
   it('rejects a v1 (skill-tree) export with a clear message', async () => {
     await expect(importAll({ version: 1, skills: {}, xp: 0 } as unknown as Awaited<ReturnType<typeof exportAll>>))
       .rejects.toThrow(/older Lingua Quest/)
+  })
+
+  it('rejects a v2 file with no profile', async () => {
+    await expect(importAll({ version: 2, items: { es: {}, fr: {} } } as unknown as Awaited<ReturnType<typeof exportAll>>))
+      .rejects.toThrow(/missing its profile/)
   })
 
   it('exposes the known languages', () => {
