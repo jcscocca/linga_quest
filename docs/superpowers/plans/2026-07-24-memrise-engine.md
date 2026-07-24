@@ -815,12 +815,17 @@ git commit -m "feat(engine): seed whole deck from probe frontier"
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest'
-import { entries } from 'idb-keyval'
+import { clear, entries } from 'idb-keyval'
 import { useEngine, itemStore } from './engine'
 import { todayString } from './xp'
 import type { ItemState } from './srs'
 
+// Clear idb (default store + both language stores) so tests don't leak state
+// into each other through fake-indexeddb.
 async function reset() {
+  await clear()
+  await clear(itemStore('es'))
+  await clear(itemStore('fr'))
   useEngine.setState({ activeLang: 'es', states: {}, profile: { version: 2, frontier: {}, hydrated: true }, hydrated: true })
 }
 
@@ -862,7 +867,7 @@ Expected: FAIL — cannot find module `./engine`.
 // loads. Profile (frontier estimates, settings) lives in the default store.
 
 import { create } from 'zustand'
-import { createStore, entries, get as idbGet, set as idbSet, setMany, type UseStore } from 'idb-keyval'
+import { createStore, entries, get as idbGet, set as idbSet, type UseStore } from 'idb-keyval'
 import { todayString } from './xp'
 import { newState, schedule, type ItemState } from './srs'
 
@@ -899,11 +904,9 @@ export const useEngine = create<EngineStore>((set, get) => ({
   hydrated: false,
 
   async hydrate(lang) {
-    let profile = get().profile
-    if (!profile.hydrated) {
-      const saved = await idbGet<Profile>(PROFILE_KEY).catch(() => undefined)
-      profile = saved && saved.version === 2 ? { ...saved, hydrated: true } : { ...emptyProfile, hydrated: true }
-    }
+    // Always reload the (tiny) profile from idb so an import is reflected.
+    const saved = await idbGet<Profile>(PROFILE_KEY).catch(() => undefined)
+    const profile: Profile = saved && saved.version === 2 ? { ...saved, hydrated: true } : { ...emptyProfile, hydrated: true }
     const pairs = await entries<string, ItemState>(itemStore(lang)).catch(() => [])
     set({ activeLang: lang, states: Object.fromEntries(pairs), profile, hydrated: true })
   },
@@ -916,11 +919,9 @@ export const useEngine = create<EngineStore>((set, get) => ({
     await idbSet(id, next, itemStore(activeLang))
   },
 }))
-
-export { setMany } // re-exported for later tasks
 ```
 
-Note: `setMany` is imported now so Task 8 can use it without re-editing imports; the re-export line keeps the linter from flagging it as unused until then.
+Note: Task 8 adds `setMany` (and `isStrong`) to these import lines when it first uses them, so Task 7's imports stay minimal.
 
 - [ ] **Step 4: Run to verify it passes**
 
@@ -990,6 +991,13 @@ Expected: FAIL — `applyProbe`/`resetItem`/`strongCount`/`estimatedVocab` missi
 
 - [ ] **Step 3: Extend `src/lib/engine.ts`**
 
+First add `setMany` to the idb-keyval import and `isStrong` to the `./srs` import, so those two lines read:
+
+```ts
+import { createStore, entries, get as idbGet, set as idbSet, setMany, type UseStore } from 'idb-keyval'
+import { isStrong, newState, schedule, type ItemState } from './srs'
+```
+
 Add these methods to the `EngineStore` interface:
 
 ```ts
@@ -1020,11 +1028,9 @@ Add the implementations inside the `create(...)` object (after `grade`):
   },
 ```
 
-Add these pure selectors at the bottom of the file (replace the temporary `export { setMany }` line — it's now used internally):
+Add these pure selectors at the bottom of the file (`isStrong` is already imported from the step above):
 
 ```ts
-import { isStrong } from './srs'
-
 export function strongCount(states: Record<string, ItemState>, today: string): number {
   return Object.values(states).filter(s => isStrong(s, today)).length
 }
@@ -1033,8 +1039,6 @@ export function estimatedVocab(profile: Profile, lang: string): number {
   return profile.frontier[lang] ?? 0
 }
 ```
-
-Remove the `export { setMany }` re-export line and the note from Task 7 (setMany is now called directly).
 
 - [ ] **Step 4: Run to verify it passes**
 
