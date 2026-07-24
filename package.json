@@ -9,7 +9,8 @@
     "test": "vitest run",
     "e2e": "playwright test",
     "validate": "tsx scripts/validate-deck.ts",
-    "build:deck": "tsx scripts/build-deck.ts"
+    "build:deck": "tsx scripts/build-deck.ts",
+    "build:deck:fr": "tsx scripts/build-deck-fr.ts"
   },
   "dependencies": {
     "idb-keyval": "^6.3.0",
