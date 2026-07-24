@@ -5,6 +5,7 @@
 // doubles as an estimated vocabulary size.
 
 import type { Deck, DeckItem } from './deck'
+import { seedFromProbe, type ItemState, type ProbeVerdict } from './srs'
 
 export interface ProbeOpts {
   bands: number
@@ -75,4 +76,27 @@ export function probeFrontier(state: ProbeState): number {
     }
   }
   return Math.round(Math.min(state.deckSize, frontier))
+}
+
+/** Half-band margin around the frontier that seeds as "fuzzy". */
+const FUZZY_MARGIN = 0.5
+
+/** Seed initial state for EVERY deck item from an estimated frontier. */
+export function seedDeck(deck: Deck, frontier: number, today: string): Record<string, ItemState> {
+  const width = deck.items.length / 15
+  const margin = width * FUZZY_MARGIN
+  const out: Record<string, ItemState> = {}
+  for (const it of deck.items) {
+    let verdict: ProbeVerdict
+    if (it.rank <= frontier - margin) verdict = 'known'
+    else if (it.rank >= frontier + margin) verdict = 'unknown'
+    else verdict = 'fuzzy'
+    out[it.id] = seedFromProbe(verdict, today)
+  }
+  return out
+}
+
+/** The frontier rank is itself the estimated vocabulary size. */
+export function estimateVocab(frontier: number): number {
+  return frontier
 }

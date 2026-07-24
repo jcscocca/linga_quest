@@ -42,3 +42,31 @@ describe('probe frontier estimate', () => {
     expect(n).toBeLessThanOrEqual(160)
   })
 })
+
+import { estimateVocab, seedDeck } from './probe'
+
+describe('seedDeck', () => {
+  const deck = makeDeck(100)
+
+  it('seeds words well below the frontier as known, well above as new', () => {
+    const seeds = seedDeck(deck, 60, '2026-07-24')
+    expect(seeds['es:w10:noun'].level).toBe(4) // deep known
+    expect(seeds['es:w10:noun'].origin).toBe('probe')
+    expect(seeds['es:w90:noun'].level).toBe(0) // deep unknown
+  })
+
+  it('seeds the frontier band at level 1', () => {
+    const seeds = seedDeck(deck, 60, '2026-07-24')
+    expect(seeds['es:w60:noun'].level).toBe(1) // right at the frontier
+  })
+
+  it('produces one seed per deck item', () => {
+    expect(Object.keys(seedDeck(deck, 60, '2026-07-24'))).toHaveLength(100)
+  })
+})
+
+describe('estimateVocab', () => {
+  it('is the frontier rank', () => {
+    expect(estimateVocab(1500)).toBe(1500)
+  })
+})
