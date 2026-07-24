@@ -30,7 +30,7 @@ describe('probe frontier estimate', () => {
 
   it('estimates a low frontier for a mostly-unknown learner', () => {
     const est = runProbe(size, 300)
-    expect(est).toBeLessThanOrEqual(bandWidth * 2)
+    expect(est).toBeLessThanOrEqual(bandWidth * 1.75) // pre-fix bias to ~400 would fail this
   })
 
   it('tests roughly bands×perBand words', () => {
@@ -48,11 +48,11 @@ import { estimateVocab, seedDeck } from './probe'
 describe('seedDeck', () => {
   const deck = makeDeck(100)
 
-  it('seeds words well below the frontier as known, well above as new', () => {
+  it('seeds words well below the frontier as known, and leaves words above it unseeded', () => {
     const seeds = seedDeck(deck, 60, '2026-07-24')
     expect(seeds['es:w10:noun'].level).toBe(4) // deep known
     expect(seeds['es:w10:noun'].origin).toBe('probe')
-    expect(seeds['es:w90:noun'].level).toBe(0) // deep unknown
+    expect(seeds['es:w90:noun']).toBeUndefined() // deep unknown → new-word pool
   })
 
   it('seeds the frontier band at level 1', () => {
@@ -60,8 +60,12 @@ describe('seedDeck', () => {
     expect(seeds['es:w60:noun'].level).toBe(1) // right at the frontier
   })
 
-  it('produces one seed per deck item', () => {
-    expect(Object.keys(seedDeck(deck, 60, '2026-07-24'))).toHaveLength(100)
+  it('seeds only known and frontier-band words, not the whole deck', () => {
+    const seeds = seedDeck(deck, 60, '2026-07-24')
+    const count = Object.keys(seeds).length
+    expect(count).toBeGreaterThan(0)
+    expect(count).toBeLessThan(deck.items.length) // unknowns left unseeded
+    expect(Object.keys(seeds).every(id => seeds[id].level >= 1)).toBe(true)
   })
 })
 

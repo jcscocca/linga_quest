@@ -5,7 +5,7 @@
 // doubles as an estimated vocabulary size.
 
 import type { Deck, DeckItem } from './deck'
-import { seedFromProbe, type ItemState, type ProbeVerdict } from './srs'
+import { seedFromProbe, type ItemState } from './srs'
 
 export interface ProbeOpts {
   bands: number
@@ -52,46 +52,39 @@ export function probeRecord(state: ProbeState, knew: boolean): ProbeState {
   return { ...state, knew: knewNext, cursor, done: cursor >= state.queue.length }
 }
 
-/** Estimate the frontier: the highest band-boundary rank still known ≥ 50%.
- *  Interpolates within the crossover band for a smoother number. */
+/** Estimate the frontier as Σ (known-fraction per band) × band-width. For a
+ *  learner who knows everything up to rank R this sums to ~R (unbiased), and it
+ *  credits scattered knowledge in higher bands without special-casing a
+ *  crossover. */
 export function probeFrontier(state: ProbeState): number {
   const width = state.deckSize / state.bands
-  const knewByBand: { known: number; total: number }[] = Array.from({ length: state.bands }, () => ({ known: 0, total: 0 }))
+  const byBand: { known: number; total: number }[] = Array.from({ length: state.bands }, () => ({ known: 0, total: 0 }))
   for (let i = 0; i < state.knew.length; i++) {
     const band = Math.min(state.bands - 1, Math.floor((state.queue[i] - 1) / width))
-    knewByBand[band].total++
-    if (state.knew[i]) knewByBand[band].known++
+    byBand[band].total++
+    if (state.knew[i]) byBand[band].known++
   }
   let frontier = 0
-  for (let b = 0; b < state.bands; b++) {
-    const { known, total } = knewByBand[b]
-    const rate = total ? known / total : 0
-    if (rate >= 0.5) {
-      // Fully-known band: frontier at least its top edge, plus the partial share.
-      frontier = b * width + rate * width
-    } else {
-      // First band under half: interpolate the crossover and stop.
-      if (b > 0 && knewByBand[b - 1].total) frontier = b * width + rate * width
-      break
-    }
-  }
+  for (const { known, total } of byBand) frontier += (total ? known / total : 0) * width
   return Math.round(Math.min(state.deckSize, frontier))
 }
 
 /** Half-band margin around the frontier that seeds as "fuzzy". */
 const FUZZY_MARGIN = 0.5
 
-/** Seed initial state for EVERY deck item from an estimated frontier. */
+/** Seed initial state from an estimated frontier for the words worth tracking:
+ *  known words (mature, long interval) and the uncertain frontier band. Words
+ *  clearly ABOVE the frontier are left UNSEEDED — they are the new-word pool and
+ *  enter at level 0 the first time they're studied, rather than flooding the
+ *  review queue on probe day. */
 export function seedDeck(deck: Deck, frontier: number, today: string): Record<string, ItemState> {
   const width = deck.items.length / 15
   const margin = width * FUZZY_MARGIN
   const out: Record<string, ItemState> = {}
   for (const it of deck.items) {
-    let verdict: ProbeVerdict
-    if (it.rank <= frontier - margin) verdict = 'known'
-    else if (it.rank >= frontier + margin) verdict = 'unknown'
-    else verdict = 'fuzzy'
-    out[it.id] = seedFromProbe(verdict, today)
+    if (it.rank <= frontier - margin) out[it.id] = seedFromProbe('known', today)
+    else if (it.rank < frontier + margin) out[it.id] = seedFromProbe('fuzzy', today)
+    // else unknown → leave unseeded
   }
   return out
 }
