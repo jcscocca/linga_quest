@@ -26,6 +26,7 @@ export function validateDecks(): Issue[] {
     if (deck.lang !== lang) add(`${lang}/deck.json`, `lang "${deck.lang}" != folder "${lang}"`)
     if (!Array.isArray(deck.sources) || deck.sources.length === 0) add(`${lang}/deck.json`, 'missing sources[] attribution')
     if (!Array.isArray(deck.items) || deck.items.length === 0) { add(`${lang}/deck.json`, 'no items'); continue }
+    if (deck.items.length < 100) add(`${lang}/deck.json`, `only ${deck.items.length} items — expected a full deck`)
 
     const ids = new Set<string>()
     deck.items.forEach((it, i) => {
@@ -36,6 +37,7 @@ export function validateDecks(): Issue[] {
       if (it.id !== `${lang}:${it.lemma}:${it.pos}`) add(w, `id must equal lang:lemma:pos`)
       if (!it.lemma) add(w, 'missing lemma')
       if (!Array.isArray(it.gloss) || it.gloss.length === 0 || !it.gloss[0]) add(w, 'gloss must be a non-empty list')
+      else if (it.gloss[0].length > 60) add(w, `gloss too long: "${it.gloss[0]}"`)
       if (it.rank !== i + 1) add(w, `rank ${it.rank} not dense (expected ${i + 1})`)
       // self-consistency: the canonical gloss must pass the grader against itself
       if (it.gloss?.[0] && !checkText(it.gloss[0], it.gloss).correct) add(w, `gloss "${it.gloss[0]}" fails the checker`)
