@@ -1,56 +1,41 @@
+// Thin router: hydrates the engine, loads the active language's deck, and
+// switches between the four screens. All behavior lives in the screens/engine.
+
 import { useEffect, useState } from 'react'
-import { HomeScreen } from './components/HomeScreen'
-import { LessonScreen } from './components/LessonScreen'
-import { ReviewScreen } from './components/ReviewScreen'
-import { VocabScreen } from './components/VocabScreen'
-import { loadJson, type CourseMeta, type CoursesFile, type Curriculum, type SkillBank } from './lib/content'
-import { useProgress } from './lib/progress'
-import { assembleReview, displayedMastery, type ReviewItem } from './lib/review'
-import { todayString } from './lib/xp'
+import { Collection } from './components/Collection'
+import { Home } from './components/Home'
+import { ProbeScreen } from './components/ProbeScreen'
+import { SessionScreen } from './components/SessionScreen'
+import type { Deck } from './lib/deck'
+import { loadDeck } from './lib/deck'
+import { LANGS, useEngine } from './lib/engine'
 
-interface Content {
-  courses: CourseMeta[]
-  course: CourseMeta
-  curriculum: Curriculum
-  banks: Record<string, SkillBank>
-}
+type View = 'home' | 'probe' | 'session' | 'collection'
 
-type View =
-  | { screen: 'home' }
-  | { screen: 'lesson'; skillId: string }
-  | { screen: 'vocab' }
-  | { screen: 'review'; items: ReviewItem[] }
-
-const DEFAULT_COURSE = 'es'
+const DEFAULT_LANG = 'es'
 
 export default function App() {
-  const [content, setContent] = useState<Content | null>(null)
-  const [courseId, setCourseId] = useState(DEFAULT_COURSE)
+  const [lang, setLang] = useState(DEFAULT_LANG)
+  const [deck, setDeck] = useState<Deck | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [view, setView] = useState<View>({ screen: 'home' })
-  const hydrated = useProgress(s => s.hydrated)
-  const skills = useProgress(s => s.skills)
+  const [view, setView] = useState<View>('home')
+  const hydrated = useEngine(s => s.hydrated)
 
   useEffect(() => {
-    void useProgress.getState().hydrate()
+    void useEngine.getState().hydrate(DEFAULT_LANG)
   }, [])
 
   useEffect(() => {
-    setContent(null)
-    setView({ screen: 'home' })
-    loadCourse(courseId).then(setContent).catch(e => setError(String(e)))
-  }, [courseId])
+    setDeck(null)
+    setError(null)
+    setView('home')
+    loadDeck(import.meta.env.BASE_URL, lang).then(setDeck).catch(e => setError(String(e)))
+  }, [lang])
 
-  // Backfill badges for skills/units already completed (e.g. after import).
-  useEffect(() => {
-    if (!content || !hydrated) return
-    const store = useProgress.getState()
-    for (const unit of content.curriculum.units) {
-      for (const sk of unit.skills) if (store.skills[sk.id]?.completed) store.awardBadge(sk.id)
-      if (unit.skills.every(sk => useProgress.getState().skills[sk.id]?.completed))
-        useProgress.getState().awardBadge(`unit:${unit.id}`)
-    }
-  }, [content, hydrated])
+  function switchLang(next: string) {
+    setLang(next)
+    void useEngine.getState().hydrate(next)
+  }
 
   if (error)
     return (
@@ -59,77 +44,29 @@ export default function App() {
         <button onClick={() => location.reload()}>Retry</button>
       </div>
     )
-  if (!content || !hydrated) return <div className="loading">Loading… ¡Un momento!</div>
+  if (!deck || !hydrated) return <div className="loading">Loading… ¡Un momento!</div>
 
-  const allSkills = content.curriculum.units.flatMap(u => u.skills)
+  const voice = lang === 'es' ? 'es-ES' : 'fr-FR'
 
-  if (view.screen === 'vocab')
-    return <VocabScreen course={content.course} curriculum={content.curriculum} onBack={() => setView({ screen: 'home' })} />
-
-  if (view.screen === 'review')
-    return (
-      <ReviewScreen
-        items={view.items}
-        curriculum={content.curriculum}
-        course={content.course}
-        onDone={() => setView({ screen: 'home' })}
-      />
-    )
-
-  if (view.screen === 'lesson') {
-    const skill = allSkills.find(s => s.id === view.skillId)
-    const unit = content.curriculum.units.find(u => u.skills.some(s => s.id === view.skillId))
-    const bank = content.banks[view.skillId]
-    if (!skill || !unit || !bank) return <div className="load-error">Unknown skill: {view.skillId}</div>
-    return (
-      <LessonScreen
-        key={skill.id}
-        skill={skill}
-        bank={bank}
-        unit={unit}
-        course={content.course}
-        onBack={() => setView({ screen: 'home' })}
-      />
-    )
+  switch (view) {
+    case 'probe':
+      return <ProbeScreen deck={deck} lang={lang} voice={voice} onDone={() => setView('home')} />
+    case 'session':
+      return <SessionScreen deck={deck} voice={voice} onDone={() => setView('home')} />
+    case 'collection':
+      return <Collection deck={deck} voice={voice} onBack={() => setView('home')} />
+    default:
+      return (
+        <Home
+          deck={deck}
+          lang={lang}
+          langs={LANGS}
+          voice={voice}
+          onStartSession={() => setView('session')}
+          onStartProbe={() => setView('probe')}
+          onOpenCollection={() => setView('collection')}
+          onSwitchLang={switchLang}
+        />
+      )
   }
-
-  const today = todayString()
-  const reviewItems = assembleReview(skills, content.banks, today)
-  let rustiest: { name: string; from: number; to: number } | null = null
-  for (const sk of allSkills) {
-    const sp = skills[sk.id]
-    if (!sp?.completed) continue
-    const shown = displayedMastery(sp, today)
-    if (shown < sp.mastery && (!rustiest || sp.mastery - shown > rustiest.from - rustiest.to))
-      rustiest = { name: sk.name, from: sp.mastery, to: shown }
-  }
-
-  return (
-    <HomeScreen
-      course={content.course}
-      courses={content.courses}
-      curriculum={content.curriculum}
-      onOpenSkill={skillId => setView({ screen: 'lesson', skillId })}
-      onOpenVocab={() => setView({ screen: 'vocab' })}
-      onSwitchCourse={setCourseId}
-      reviewCount={reviewItems.length}
-      rustiest={rustiest}
-      onStartReview={() => setView({ screen: 'review', items: reviewItems })}
-    />
-  )
-}
-
-async function loadCourse(courseId: string): Promise<Content> {
-  const base = import.meta.env.BASE_URL
-  const { courses } = await loadJson<CoursesFile>(`${base}content/courses.json`)
-  const course = courses.find(c => c.id === courseId) ?? courses[0]
-  const curriculum = await loadJson<Curriculum>(`${base}content/${course.id}/curriculum.json`)
-  const skills = curriculum.units.flatMap(u => u.skills)
-  const banks: Record<string, SkillBank> = {}
-  await Promise.all(
-    skills.map(async s => {
-      banks[s.id] = await loadJson<SkillBank>(`${base}content/${course.id}/skills/${s.id}.json`)
-    }),
-  )
-  return { courses, course, curriculum, banks }
 }
